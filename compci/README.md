@@ -1,52 +1,43 @@
-# Compilador CI
+# Analisador Lexico EC1
 
-Compilador para a linguagem CI (Constantes Inteiras). Um programa CI
-é uma constante inteira; o compilador gera assembly x86-64 (sintaxe
-GNU Assembler, Linux) que imprime essa constante.
+Analisador lexico para a linguagem **EC1 (Expressoes Constantes 1)** — Atividade
+04. EC1 e uma expressao aritmetica totalmente parentizada com `+ - * /` e
+literais inteiros (ex.: `(33 + (912 * 11))`).
 
-## Uso com Docker
+O programa le um arquivo `.ci` passado como argumento e imprime a sequencia de
+tokens, um por linha, no formato `<tipo, "lexema", posicao>` (posicao = indice
+do caractere na entrada). Tipos: `ParenEsq`, `ParenDir`, `Soma`, `Sub`, `Mult`,
+`Div`, `Numero`.
 
-Construir a imagem (só uma vez, ou sempre que mudar o codigo):
+## Rodar o analisador
 
-```
-docker build -t compci .
-```
-
-Rodar o teste padrao (compila `tests/ok.ci`, monta, linka e executa):
-
-```
-docker run --rm compci
-```
-
-
-Saida esperada:
+Em um arquivo qualquer:
 
 ```
-gerado: tests/ok.s
---- saida do programa ---
-42
+python3 compci.py caminho/para/arquivo.ci
 ```
 
-### Testar o caso de erro
+Saida em caso de erro lexico (caractere fora de `() + - * /` ou digitos): a
+mensagem `Erro lexico na posicao N: caractere invalido 'X'` vai para `stderr` e
+o processo sai com codigo != 0.
+
+## Rodar os testes
+
+A suite usa [cram](https://bitheap.org/cram/). Localmente:
 
 ```
-docker run --rm compci bash ./build.sh tests/erro.ci
+pip install cram
+cram compci/tests/lexer.t
 ```
 
-O `build.sh` para no primeiro erro: o `compci.py` falha, o `as` e o
-`ld` nao chegam a rodar, e o container sai com codigo != 0.
+Os testes cobrem: o programa-exemplo do enunciado, um literal isolado, uma
+expressao com varios espacos em branco, e um caso de erro lexico.
 
-### Abrir um shell no container (pra explorar)
-
-```
-docker run --rm -it --entrypoint bash compci
-```
-
-Lá dentro voce pode rodar manualmente:
+## Docker
 
 ```
-python3 compci.py tests/ok.ci
-as --64 -o tests/ok.o tests/ok.s
-ld -o tests/ok tests/ok.o
-./tests/ok
+docker build -t compci compci/
+docker run --rm compci                       # roda cram tests/lexer.t
+docker run --rm -v "$PWD":/work compci \
+    python3 compci.py /work/arquivo.ci       # analisa um arquivo arbitrario
 ```
