@@ -1,6 +1,3 @@
-# Analisador lexico da linguagem EC1.
-# Modulo separado para crescer junto com a linguagem nas proximas atividades.
-
 from collections import namedtuple
 
 # tipos de token
