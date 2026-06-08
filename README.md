@@ -1,37 +1,44 @@
-# Analisador Lexico EC1
+# Compilador EC1
 
-Analisador lexico para a linguagem **EC1 (Expressoes Constantes 1)** — Atividade
-04. EC1 e uma expressao aritmetica totalmente parentizada com `+ - * /` e
-literais inteiros (ex.: `(33 + (912 * 11))`).
+Compilador para a linguagem **EC1 (Expressoes Constantes 1)** — expressao aritmetica totalmente parentizada com `+ - * /` e literais inteiros (ex.: `(33 + (912 * 11))`).
 
-O programa le um arquivo `.ci` passado como argumento e imprime a sequencia de
-tokens, um por linha, no formato `<tipo, "lexema", posicao>` (posicao = indice
-do caractere na entrada). Tipos: `ParenEsq`, `ParenDir`, `Soma`, `Sub`, `Mult`,
-`Div`, `Numero`.
+O compilador realiza analise lexica e sintatica, produz a arvore de sintaxe abstrata (AST) e interpreta o programa por varredura da arvore.
 
-## Rodar o analisador
-
-Em um arquivo qualquer:
+## Uso
 
 ```
-python3 compci.py caminho/para/arquivo.ci
+python3 compci/compci.py caminho/para/arquivo.ci
 ```
 
-Saida em caso de erro lexico (caractere fora de `() + - * /` ou digitos): a
-mensagem `Erro lexico na posicao N: caractere invalido 'X'` vai para `stderr` e
-o processo sai com codigo != 0.
+Saida para uma entrada valida:
+
+```
+arvore: (33 + (912 * 11))
+valor: 10065
+```
+
+Para imprimir apenas a sequencia de tokens (comportamento da Atividade 04):
+
+```
+python3 compci/compci.py --tokens caminho/para/arquivo.ci
+```
+
+## Erros
+
+| Situacao | Saida | Codigo de saida |
+|---|---|---|
+| Erro lexico (caractere invalido) | mensagem em `stderr` | 2 |
+| Erro sintatico (expressao malformada) | mensagem em `stderr` | 3 |
 
 ## Rodar os testes
 
-A suite usa [cram](https://bitheap.org/cram/). Localmente:
+A suite usa [cram](https://bitheap.org/cram/):
 
 ```
 pip install cram
-cram compci/tests/lexer.t
+cram compci/tests/lexer.t   # testes do analisador lexico (Atividade 04)
+cram compci/tests/parser.t  # testes do analisador sintatico e interpretador (Atividade 05)
 ```
-
-Os testes cobrem: o programa-exemplo do enunciado, um literal isolado, uma
-expressao com varios espacos em branco, e um caso de erro lexico.
 
 ## Docker
 
