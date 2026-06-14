@@ -1,6 +1,6 @@
 Analisador lexico EC1 — programa OK do exemplo do PDF:
 
-  $ python3 "$TESTDIR/../compci.py" "$TESTDIR/ok.ci"
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/ok.ci"
   <ParenEsq, "(", 0>
   <Numero, "33", 1>
   <Soma, "+", 4>
@@ -13,12 +13,12 @@ Analisador lexico EC1 — programa OK do exemplo do PDF:
 
 Literal isolado:
 
-  $ python3 "$TESTDIR/../compci.py" "$TESTDIR/literal.ci"
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/literal.ci"
   <Numero, "333", 0>
 
 Expressao com varios tipos de espaco em branco — mesma sequencia de tipos/lexemas:
 
-  $ python3 "$TESTDIR/../compci.py" "$TESTDIR/espacos.ci"
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/espacos.ci"
   <ParenEsq, "(", 0>
   <Numero, "3", 3>
   <Soma, "+", 7>
@@ -35,6 +35,6 @@ Expressao com varios tipos de espaco em branco — mesma sequencia de tipos/lexe
 
 Erro lexico — mensagem em stderr (redirecionada) e exit code != 0:
 
-  $ python3 "$TESTDIR/../compci.py" "$TESTDIR/erro.ci" 2>&1
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/erro.ci" 2>&1
   Erro lexico na posicao 3: caractere invalido '$'
   [2]
