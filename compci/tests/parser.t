@@ -22,10 +22,10 @@ Erro lexico — exit code 2:
   Erro lexico na posicao 3: caractere invalido '$'
   [2]
 
-Erro sintatico: operador esperado mas encontrou numero:
+Erro sintatico: fecha-parenteses esperado mas encontrou numero (sem producao <exp> <op> <exp> na EC2):
 
   $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/erro_sint_op.ci" 2>&1
-  Erro sintatico na posicao 4: esperado operador, encontrado '33'
+  Erro sintatico na posicao 4: esperado 'ParenDir', encontrado '33'
   [3]
 
 Erro sintatico: parentese fechando ausente:
@@ -39,3 +39,33 @@ Erro sintatico: tokens extras apos a expressao:
   $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/erro_sint_extra.ci" 2>&1
   Erro sintatico na posicao 3: tokens inesperados apos expressao: '99'
   [3]
+
+Precedencia: multiplicacao antes da soma, sem parenteses:
+
+  $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/precedencia.ci"
+  arvore: (7 + (5 * 3))
+  valor: 22
+
+Associatividade a esquerda na subtracao:
+
+  $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/assoc_sub.ci"
+  arvore: ((10 - 8) - 2)
+  valor: 0
+
+Associatividade a esquerda na divisao:
+
+  $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/assoc_div.ci"
+  arvore: ((100 / 5) / 2)
+  valor: 10
+
+Expressao sem nenhum parenteses, com as quatro operacoes:
+
+  $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/sem_parenteses.ci"
+  arvore: ((2 + (3 * 4)) - (6 / 2))
+  valor: 11
+
+Parenteses continuam opcionais para forcar outra ordem:
+
+  $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/parenteses_opcionais.ci"
+  arvore: ((7 + 5) * 3)
+  valor: 36

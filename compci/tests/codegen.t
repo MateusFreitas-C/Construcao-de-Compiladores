@@ -70,3 +70,28 @@ Expressao aninhada com as quatro operacoes:
 
   $ roda "$TESTDIR/complexo.ci"
   2657
+
+Precedencia sem parenteses — multiplicacao antes da soma:
+
+  $ roda "$TESTDIR/precedencia.ci"
+  22
+
+Associatividade a esquerda — subtracao encadeada:
+
+  $ roda "$TESTDIR/assoc_sub.ci"
+  0
+
+Associatividade a esquerda — divisao encadeada:
+
+  $ roda "$TESTDIR/assoc_div.ci"
+  10
+
+Expressao sem parenteses com as quatro operacoes:
+
+  $ roda "$TESTDIR/sem_parenteses.ci"
+  11
+
+Parenteses ainda funcionam para forcar outra ordem:
+
+  $ roda "$TESTDIR/parenteses_opcionais.ci"
+  36
