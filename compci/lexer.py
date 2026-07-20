@@ -9,6 +9,9 @@ MULT = "Mult"
 DIV = "Div"
 NUMERO = "Numero"
 EOF = "EOF"
+PONTO_VIRGULA = "PontoVirgula"
+IGUAL = "Igual"
+IDENTIFICADOR = "Identificador"
 
 OPERADORES = {
     "+": SOMA,
@@ -44,13 +47,26 @@ def tokenizar(texto):
         elif c == ")":
             tokens.append(Token(PAREN_DIR, c, i))
             i += 1
+        elif c == ";":
+            tokens.append(Token(PONTO_VIRGULA, c, i))
+            i += 1
+        elif c == "=":
+            tokens.append(Token(IGUAL, c, i))
+            i += 1
         elif c in OPERADORES:
             tokens.append(Token(OPERADORES[c], c, i))
             i += 1
+        elif c.isalpha():
+            inicio = i
+            while i < n and texto[i].isalnum():
+                i += 1
+            tokens.append(Token(IDENTIFICADOR, texto[inicio:i], inicio))
         elif c.isdigit():
             inicio = i
             while i < n and texto[i].isdigit():
                 i += 1
+            if i < n and texto[i].isalpha():
+                raise ErroLexico(i, texto[i])
             tokens.append(Token(NUMERO, texto[inicio:i], inicio))
         else:
             raise ErroLexico(i, c)

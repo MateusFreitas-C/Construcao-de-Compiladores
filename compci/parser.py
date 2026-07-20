@@ -1,4 +1,4 @@
-from lexer import DIV, EOF, MULT, NUMERO, PAREN_DIR, PAREN_ESQ, SOMA, SUB
+from lexer import DIV, EOF, MULT, NUMERO, PAREN_DIR, PAREN_ESQ, SOMA, SUB, IGUAL, IDENTIFICADOR, PONTO_VIRGULA
 
 NIVEL_ADITIVO = {SOMA, SUB}
 NIVEL_MULTIPLICATIVO = {MULT, DIV}
@@ -20,7 +20,7 @@ class Const(Exp):
     def __init__(self, valor):
         self.valor = valor
 
-    def avaliar(self):
+    def avaliar(self, env):
         return self.valor
 
     def imprimir(self):
@@ -33,9 +33,9 @@ class OpBin(Exp):
         self.esq = esq
         self.dir = dir
 
-    def avaliar(self):
-        v_esq = self.esq.avaliar()
-        v_dir = self.dir.avaliar()
+    def avaliar(self, env):
+        v_esq = self.esq.avaliar(env)
+        v_dir = self.dir.avaliar(env)
         if self.op == '+':
             return v_esq + v_dir
         if self.op == '-':
@@ -47,6 +47,41 @@ class OpBin(Exp):
 
     def imprimir(self):
         return f'({self.esq.imprimir()} {self.op} {self.dir.imprimir()})'
+
+
+class Programa(Exp):
+    def __init__(self, declaracoes, exp_final):
+        self.declaracoes = declaracoes
+        self.exp_final = exp_final
+
+    def avaliar(self, env):
+        for decl in self.declaracoes:
+            env[decl.nome] = decl.exp.avaliar(env)
+        return self.exp_final.avaliar(env)
+
+    def imprimir(self):
+        decls = "".join(f"{decl.imprimir()} " for decl in self.declaracoes)
+        return f"{decls}= {self.exp_final.imprimir()}"
+
+
+class Declaracao:
+    def __init__(self, nome, exp):
+        self.nome = nome
+        self.exp = exp
+
+    def imprimir(self):
+        return f"{self.nome} = {self.exp.imprimir()};"
+
+
+class Var(Exp):
+    def __init__(self, nome):
+        self.nome = nome
+
+    def avaliar(self, env):
+        return env[self.nome]
+
+    def imprimir(self):
+        return self.nome
 
 
 # --- Analisador sintático ---
@@ -77,6 +112,29 @@ class Parser:
             raise ErroSintatico(tok.pos, f"esperado '{tipo}', encontrado '{lexema}'")
         return tok
 
+    def analisa_programa(self):
+        declaracoes = []
+        tok = self._peek()
+        while tok.tipo == IDENTIFICADOR:
+            dec = self.analisa_declaracao()
+            declaracoes.append(dec)
+            tok = self._peek()
+        
+        tok = self._proximo_token()
+        if tok.tipo != IGUAL:
+            lexema = tok.lexema if tok.lexema else tok.tipo
+            raise ErroSintatico(tok.pos, f"esperado '=', encontrado '{lexema}'")
+        
+        exp_final = self.analisa_exp_a()
+        return Programa(declaracoes, exp_final)
+
+    def analisa_declaracao(self):
+        tok_id = self._verifica_prox(IDENTIFICADOR)
+        self._verifica_prox(IGUAL)
+        exp = self.analisa_exp_a()
+        self._verifica_prox(PONTO_VIRGULA)
+        return Declaracao(tok_id.lexema, exp)
+
     def analisa_exp_a(self):
         esq = self.analisa_exp_m()
         tok = self._peek()
@@ -101,6 +159,8 @@ class Parser:
         tok = self._proximo_token()
         if tok.tipo == NUMERO:
             return Const(int(tok.lexema))
+        if tok.tipo == IDENTIFICADOR:
+            return Var(tok.lexema)
         if tok.tipo == PAREN_ESQ:
             exp = self.analisa_exp_a()
             self._verifica_prox(PAREN_DIR)
@@ -109,7 +169,7 @@ class Parser:
         raise ErroSintatico(tok.pos, f"esperado numero ou '(', encontrado '{lexema}'")
 
     def analisar(self):
-        arvore = self.analisa_exp_a()
+        arvore = self.analisa_programa()
         prox = self._peek()
         if prox.tipo != EOF:
             lexema = prox.lexema if prox.lexema else prox.tipo

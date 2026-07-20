@@ -95,3 +95,8 @@ Parenteses ainda funcionam para forcar outra ordem:
 
   $ roda "$TESTDIR/parenteses_opcionais.ci"
   36
+
+Compilar e executar programa com variaveis:
+
+  $ roda "$TESTDIR/test_vars.ci"
+  60467
