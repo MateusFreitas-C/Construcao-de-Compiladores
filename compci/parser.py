@@ -1,6 +1,7 @@
 from lexer import DIV, EOF, MULT, NUMERO, PAREN_DIR, PAREN_ESQ, SOMA, SUB
 
-TIPOS_OPERADOR = {SOMA, SUB, MULT, DIV}
+NIVEL_ADITIVO = {SOMA, SUB}
+NIVEL_MULTIPLICATIVO = {MULT, DIV}
 
 
 class ErroSintatico(Exception):
@@ -49,6 +50,12 @@ class OpBin(Exp):
 
 
 # --- Analisador sintático ---
+#
+# Gramatica EC2 (precedencia e associatividade, sem parenteses obrigatorios):
+#
+#   exp_a ::= exp_m (('+' | '-') exp_m)*
+#   exp_m ::= prim (('*' | '/') prim)*
+#   prim  ::= num | '(' exp_a ')'
 
 class Parser:
     def __init__(self, tokens):
@@ -70,28 +77,39 @@ class Parser:
             raise ErroSintatico(tok.pos, f"esperado '{tipo}', encontrado '{lexema}'")
         return tok
 
-    def analisa_exp(self):
+    def analisa_exp_a(self):
+        esq = self.analisa_exp_m()
+        tok = self._peek()
+        while tok.tipo in NIVEL_ADITIVO:
+            self._proximo_token()
+            dire = self.analisa_exp_m()
+            esq = OpBin(tok.lexema, esq, dire)
+            tok = self._peek()
+        return esq
+
+    def analisa_exp_m(self):
+        esq = self.analisa_prim()
+        tok = self._peek()
+        while tok.tipo in NIVEL_MULTIPLICATIVO:
+            self._proximo_token()
+            dire = self.analisa_prim()
+            esq = OpBin(tok.lexema, esq, dire)
+            tok = self._peek()
+        return esq
+
+    def analisa_prim(self):
         tok = self._proximo_token()
         if tok.tipo == NUMERO:
             return Const(int(tok.lexema))
         if tok.tipo == PAREN_ESQ:
-            esq = self.analisa_exp()
-            op = self.analisa_operador()
-            dire = self.analisa_exp()
+            exp = self.analisa_exp_a()
             self._verifica_prox(PAREN_DIR)
-            return OpBin(op, esq, dire)
+            return exp
         lexema = tok.lexema if tok.lexema else tok.tipo
         raise ErroSintatico(tok.pos, f"esperado numero ou '(', encontrado '{lexema}'")
 
-    def analisa_operador(self):
-        tok = self._proximo_token()
-        if tok.tipo in TIPOS_OPERADOR:
-            return tok.lexema
-        lexema = tok.lexema if tok.lexema else tok.tipo
-        raise ErroSintatico(tok.pos, f"esperado operador, encontrado '{lexema}'")
-
     def analisar(self):
-        arvore = self.analisa_exp()
+        arvore = self.analisa_exp_a()
         prox = self._peek()
         if prox.tipo != EOF:
             lexema = prox.lexema if prox.lexema else prox.tipo
