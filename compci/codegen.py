@@ -1,4 +1,4 @@
-from parser import Const, OpBin
+from parser import Const, OpBin, Var, Programa
 
 # instrucao aritmetica por operador (esquerdo em RAX, direito em RBX)
 INSTRUCAO = {
@@ -11,6 +11,9 @@ INSTRUCAO = {
 def _gerar_exp(no, linhas):
     if isinstance(no, Const):
         linhas.append(f"mov ${no.valor}, %rax")
+        return
+    if isinstance(no, Var):
+        linhas.append(f"mov {no.nome}, %rax")
         return
     if isinstance(no, OpBin):
         _gerar_exp(no.dir, linhas)
@@ -46,8 +49,22 @@ EPILOGO = [
 def gerar_programa(arvore):
     """Retorna o assembly completo (string) para a arvore sintatica dada."""
     corpo = []
-    _gerar_exp(arvore, corpo)
-    linhas = list(PROLOGO)
+    
+    bss_linhas = []
+    if arvore.declaracoes:
+        bss_linhas.append("    .section .bss")
+        variaveis = set(decl.nome for decl in arvore.declaracoes)
+        for var in sorted(variaveis):
+            bss_linhas.append(f"    .lcomm {var}, 8")
+        bss_linhas.append("")
+
+    for decl in arvore.declaracoes:
+        _gerar_exp(decl.exp, corpo)
+        corpo.append(f"mov %rax, {decl.nome}")
+        
+    _gerar_exp(arvore.exp_final, corpo)
+    
+    linhas = list(bss_linhas) + list(PROLOGO)
     linhas.extend("    " + instr for instr in corpo)
     linhas.extend(EPILOGO)
     return "\n".join(linhas) + "\n"

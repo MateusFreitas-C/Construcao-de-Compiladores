@@ -7,6 +7,7 @@ import sys
 
 from lexer import EOF, ErroLexico, formatar, tokenizar
 from parser import ErroSintatico, analisar
+from semantic import ErroSemantico, verificar_semantica
 from codegen import gerar_programa
 
 
@@ -53,9 +54,18 @@ def main():
         print(str(e), file=sys.stderr)
         sys.exit(3)
 
+    try:
+        verificar_semantica(arvore)
+    except ErroSemantico as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(4)
+
     if modo_ast:
         print(f"arvore: {arvore.imprimir()}")
-        print(f"valor: {arvore.avaliar()}")
+        try:
+            print(f"valor: {arvore.avaliar({})}")
+        except Exception as e:
+            print(f"erro na avaliacao: {e}")
         return
 
     # modo padrao (Atividade 06): geracao de codigo

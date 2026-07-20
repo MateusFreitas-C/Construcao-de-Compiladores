@@ -1,37 +1,40 @@
-# Compilador EC2
+# Compilador EV (Expressões com Variáveis)
 
-Compilador completo para a linguagem **EC2 (Expressoes Constantes 2)** —
-Atividade 07. Um programa EC2 e uma expressao aritmetica com `+ - * /` e
-literais inteiros, em que os parenteses sao **opcionais**: a ordem das
-operacoes segue as convencoes usuais de precedencia (`*` e `/` antes de `+`
-e `-`) e associatividade a esquerda. Parenteses continuam podendo ser
-usados para forcar outra ordem, ex.: `(7 + 5) * 3`.
+Compilador completo para a linguagem **EV (Expressões com Variáveis)** —
+Atividade 08. Um programa EV é uma série de zero ou mais declarações de 
+variáveis seguidas de uma expressão final. As expressões aritméticas 
+suportam `+ - * /`, variáveis e literais inteiros, em que os parênteses são 
+**opcionais**: a ordem das operações segue as convenções usuais de 
+precedência (`*` e `/` antes de `+` e `-`) e associatividade à esquerda.
 
 Exemplos validos:
 
 ```
-7 + 5 * 3          # = 22 (multiplicacao antes da soma)
-10 - 8 - 2         # = 0  (associatividade a esquerda: (10 - 8) - 2)
-(7 + 5) * 3        # = 36 (parenteses forcam a soma primeiro)
-(33 + (912 * 11))  # totalmente parentizado (EC1) continua valido
+x = 7 + 5 * 3;     # multiplicacao antes da soma
+y = x - 8 - 2;     # associatividade a esquerda: (22 - 8) - 2 = 12
+= (x + y) * 3      # parenteses forcam a soma primeiro: (22 + 12) * 3 = 102
 ```
 
 O compilador percorre as tres etapas classicas e gera assembly x86-64 pronto
 para ser montado e executado:
 
-1. **Analise lexica** (`compci/lexer.py`) — transforma o texto em tokens.
-2. **Analise sintatica** (`compci/parser.py`) — constroi a arvore de sintaxe
-   abstrata (AST) com os nos `Const` e `OpBin`, aplicando precedencia e
-   associatividade (ver "Gramatica" abaixo).
-3. **Geracao de codigo** (`compci/codegen.py`) — percorre a AST e emite
-   assembly (inalterada desde a Atividade 06).
+1. **Análise léxica** (`compci/lexer.py`) — transforma o texto em tokens.
+2. **Análise sintática** (`compci/parser.py`) — constrói a árvore de sintaxe
+   abstrata (AST) com os nós `Programa`, `Declaracao`, `Var`, `Const` e `OpBin`.
+3. **Análise semântica** (`compci/semantic.py`) — verifica se todas as variáveis 
+   utilizadas nas expressões foram previamente declaradas.
+4. **Geração de código** (`compci/codegen.py`) — percorre a AST e emite
+   assembly com seção `.bss` para as variáveis declaradas.
 
 ## Gramatica
 
 ```
-exp_a ::= exp_m (('+' | '-') exp_m)*
-exp_m ::= prim (('*' | '/') prim)*
-prim  ::= num | '(' exp_a ')'
+programa ::= decl* result
+decl     ::= ident '=' exp_a ';'
+result   ::= '=' exp_a
+exp_a    ::= exp_m (('+' | '-') exp_m)*
+exp_m    ::= prim (('*' | '/') prim)*
+prim     ::= num | ident | '(' exp_a ')'
 ```
 
 `exp_a` e o nivel aditivo (precedencia mais baixa), `exp_m` e o nivel
@@ -67,8 +70,9 @@ para montar. Flags disponiveis:
 
 | Situacao                              | Saida                | Codigo de saida |
 |---------------------------------------|----------------------|-----------------|
-| Erro lexico (caractere invalido)      | mensagem em `stderr` | 2               |
-| Erro sintatico (expressao malformada) | mensagem em `stderr` | 3               |
+| Erro léxico (caractere inválido)      | mensagem em `stderr` | 2               |
+| Erro sintático (expressão malformada) | mensagem em `stderr` | 3               |
+| Erro semântico (variável não declarada)| mensagem em `stderr` | 4               |
 
 ## Esquema de geracao de codigo
 
@@ -82,11 +86,11 @@ na pilha, usando apenas dois registradores independente do tamanho da expressao:
   (`pop %rbx`) e aplica a operacao. Assim o esquerdo fica em `RAX` e o direito
   em `RBX`, o que produz a ordem correta para subtracao e divisao.
 
-Operadores: `+` → `add`, `-` → `sub`, `*` → `imul`, `/` → `cqo` + `idiv %rbx`.
+Variáveis são alocadas na seção `.bss` utilizando `.lcomm var_name, 8`.
+- Declarar e atribuir: a expressão é avaliada (resultado em `RAX`), e então `mov %rax, var_name`.
+- Usar variável: `mov var_name, %rax`.
 
-Esse esquema nao mudou em relacao a Atividade 06: a precedencia e
-associatividade sao resolvidas inteiramente na analise sintatica, entao a
-geracao de codigo so ve uma AST ja com a arvore correta.
+Operadores binários mantêm a lógica de empilhar resultados temporários: `+` → `add`, `-` → `sub`, `*` → `imul`, `/` → `cqo` + `idiv %rbx`.
 
 ## Montar e executar
 
@@ -104,32 +108,23 @@ Requer `runtime.s` no diretorio de trabalho (o assembly gerado usa
 
 A suite usa [cram](https://bitheap.org/cram/) e cobre as tres etapas:
 
-- `compci/tests/lexer.t` — tokens (Atividade 04).
-- `compci/tests/parser.t` — arvore e valor, incluindo os casos de
-  precedencia/associatividade sem parenteses da Atividade 07, e casos de
-  erro (Atividade 05).
-- `compci/tests/codegen.t` — assembly deterministico e testes **end-to-end** que
-  montam, linkam e executam o binario, conferindo o resultado numerico,
-  inclusive para as expressoes sem parenteses.
+- `compci/tests/lexer.t` — tokens, incluindo detecção de erros em números com letras (`237axy`).
+- `compci/tests/parser.t` — árvore, valor e casos de erros sintáticos.
+- `compci/tests/semantic.t` — análise de declarações e verificação de variáveis não declaradas.
+- `compci/tests/codegen.t` — assembly determinístico e testes **end-to-end** que
+  montam, linkam e executam o binário, conferindo o resultado numérico.
 
 Os testes de geracao de codigo precisam de `as`/`ld` (binutils); por isso a forma
 recomendada de rodar a suite completa e via Docker:
 
 ```
 docker build -t compci compci/
-docker run --rm compci    # roda lexer.t, parser.t e codegen.t
+docker run --rm compci    # roda lexer.t, parser.t, semantic.t e codegen.t
 ```
 
 Localmente, sem binutils, da para rodar as etapas que nao montam codigo:
 
 ```
 pip install cram
-cram compci/tests/lexer.t compci/tests/parser.t
+cram compci/tests/lexer.t compci/tests/parser.t compci/tests/semantic.t
 ```
-
-## Nota sobre otimizacao
-
-Como toda expressao EC2 e constante, o programa inteiro poderia ser avaliado em
-tempo de compilacao e reduzido a um unico `mov $resultado, %rax` (propagacao de
-constantes). O compilador atual gera o codigo fiel ao esquema de pilha, sem essa
-otimizacao; ela fica registrada como possivel melhoria futura.
