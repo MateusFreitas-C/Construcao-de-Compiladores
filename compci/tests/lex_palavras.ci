@@ -1,0 +1,7 @@
+ifx = 1;
+elsey = 2;
+whilez = 3;
+returno = 4;
+{
+  return ifx;
+}

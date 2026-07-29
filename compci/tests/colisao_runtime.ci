@@ -1,0 +1,5 @@
+buffer = 5;
+sair = 3;
+{
+  return buffer + sair;
+}

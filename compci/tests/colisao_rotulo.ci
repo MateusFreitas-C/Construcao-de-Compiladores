@@ -1,0 +1,11 @@
+Lfim0 = 7;
+Linicio0 = 2;
+{
+  if Lfim0 > 0 {
+    Lfim0 = Lfim0 - Linicio0;
+  }
+  while Lfim0 > 3 {
+    Lfim0 = Lfim0 - 1;
+  }
+  return Lfim0;
+}
