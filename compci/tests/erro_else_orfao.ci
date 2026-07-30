@@ -1,0 +1,6 @@
+main {
+  else {
+    x = 1;
+  }
+  return 0;
+}

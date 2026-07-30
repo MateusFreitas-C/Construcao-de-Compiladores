@@ -1,0 +1,7 @@
+var ifx = 1;
+var elsey = 2;
+var whilez = 3;
+var returno = 4;
+main {
+  return ifx;
+}

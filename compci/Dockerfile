@@ -11,5 +11,5 @@ COPY . /compci
 
 RUN chmod +x build.sh
 
-# por padrao roda a suite completa de testes do compilador EC1/EV
-CMD ["cram", "tests/lexer.t", "tests/parser.t", "tests/semantic.t", "tests/codegen.t"]
+# por padrao roda a suite completa de testes do compilador Fun
+CMD ["cram", "tests/lexer.t", "tests/parser.t", "tests/semantic.t", "tests/codegen.t", "tests/funcoes.t"]

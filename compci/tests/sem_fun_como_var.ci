@@ -1,0 +1,6 @@
+fun g() {
+  return 1;
+}
+main {
+  return g;
+}

@@ -1,0 +1,10 @@
+var a = 1;
+main {
+  if a == 1 { a = 2; }
+  if a != 1 { a = 3; }
+  if a <= 1 { a = 4; }
+  if a >= 1 { a = 5; }
+  if a < 1 { a = 6; }
+  if a > 1 { a = 7; }
+  return a;
+}

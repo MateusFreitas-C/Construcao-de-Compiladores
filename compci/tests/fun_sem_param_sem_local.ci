@@ -1,0 +1,6 @@
+fun sete() {
+  return 7;
+}
+main {
+  return sete() + sete();
+}

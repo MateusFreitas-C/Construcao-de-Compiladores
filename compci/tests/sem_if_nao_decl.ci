@@ -1,0 +1,7 @@
+var x = 1;
+main {
+  if x > 0 {
+    x = x + z;
+  }
+  return x;
+}

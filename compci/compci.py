@@ -61,7 +61,8 @@ def main():
         sys.exit(4)
 
     if modo_ast:
-        print(f"arvore: {arvore.imprimir()}")
+        print("arvore:")
+        print(arvore.imprimir())
         try:
             print(f"valor: {arvore.avaliar({})}")
         except Exception as e:

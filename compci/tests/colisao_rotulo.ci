@@ -1,0 +1,11 @@
+var Lfim0 = 7;
+var Linicio0 = 2;
+main {
+  if Lfim0 > 0 {
+    Lfim0 = Lfim0 - Linicio0;
+  }
+  while Lfim0 > 3 {
+    Lfim0 = Lfim0 - 1;
+  }
+  return Lfim0;
+}
