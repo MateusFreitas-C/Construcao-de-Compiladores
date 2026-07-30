@@ -1,5 +1,5 @@
-x = 1;
-{
+var x = 1;
+main {
   while x < limite {
     x = x + 1;
   }

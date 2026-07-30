@@ -1,0 +1,8 @@
+fun quadmaisum() {
+  var x = 6;
+  var y = x * x;
+  return y + 1;
+}
+main {
+  return quadmaisum();
+}

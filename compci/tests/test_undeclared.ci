@@ -1,5 +1,5 @@
-x = 7 + y;
-y = x * 11;
-{
+var x = 7 + y;
+var y = x * 11;
+main {
   return x * y + z;
 }

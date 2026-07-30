@@ -1,34 +1,31 @@
-# Compilador Cmd
+# Compilador Fun
 
-Compilador completo para a linguagem **Cmd** — Atividade 09. É a primeira
-linguagem Turing-completa do projeto: além das expressões aritméticas com
-variáveis que já existiam na linguagem EV, ela tem um comando condicional, um
-comando de repetição e um comando de atribuição, o que basta para expressar
-qualquer algoritmo.
-
-Um programa Cmd é composto por zero ou mais declarações, seguidas de um corpo
-delimitado por chaves com zero ou mais comandos e uma expressão de resultado
-introduzida por `return`.
+Compilador completo para a linguagem **Fun** — Atividade 10. Estende a
+linguagem Cmd (Atividade 09) com **funções**: declaração com a palavra-chave
+`fun`, parâmetros, variáveis locais, chamada como expressão, recursão direta, e
+um bloco `main` que marca o programa principal.
 
 ```
-n = 1;
-m = 10;
-soma = 0;
-{
-  while n < m {
-    soma = soma + n;
-    n = n + 1;
+fun fat(n) {
+  var res = 0;
+  if n < 2 {
+    res = 1;
+  } else {
+    res = n * fat(n - 1);
   }
-  return soma;
+  return res;
+}
+main {
+  return fat(5);
 }
 ```
 
-O programa acima soma os inteiros de `n` até `m - 1`, resultando em 45.
+O programa acima calcula `5! = 120` usando uma função diretamente recursiva.
 
-O menor programa possível é apenas o corpo:
+O menor programa possível continua sendo só o bloco `main`:
 
 ```
-{
+main {
   return 7 * 6;
 }
 ```
@@ -36,24 +33,36 @@ O menor programa possível é apenas o corpo:
 O compilador percorre as quatro etapas clássicas e gera assembly x86-64 pronto
 para ser montado e executado:
 
-1. **Análise léxica** (`compci/lexer.py`) — transforma o texto em tokens,
-   incluindo operadores de dois caracteres e palavras-chave.
+1. **Análise léxica** (`compci/lexer.py`) — transforma o texto em tokens; a
+   Atividade 10 acrescenta o token de vírgula e as palavras-chave `fun`, `var`
+   e `main`.
 2. **Análise sintática** (`compci/parser.py`) — constrói a árvore de sintaxe
-   abstrata (AST) com os nós de expressão `Const`, `Var` e `OpBin`, os nós de
-   comando `Se`, `Enquanto` e `Atribuicao`, e a raiz `Programa`.
-3. **Análise semântica** (`compci/semantic.py`) — verifica se toda variável
-   usada em expressões foi declarada, e se toda atribuição tem como alvo uma
-   variável já declarada.
-4. **Geração de código** (`compci/codegen.py`) — percorre a AST e emite
-   assembly com seção `.bss` para as variáveis, saltos e rótulos para os
-   comandos.
+   abstrata (AST). Além dos nós de Cmd (`Const`, `Var`, `OpBin`, `Se`,
+   `Enquanto`, `Atribuicao`, `Declaracao`), agora existem `FuncDecl` (uma
+   declaração de função) e `Chamada` (uma chamada de função, que é uma
+   expressão primária como qualquer outra). `Programa.declaracoes` guarda
+   `Declaracao`s e `FuncDecl`s **na ordem em que aparecem no texto** — essa
+   ordem importa para a análise semântica.
+3. **Análise semântica** (`compci/semantic.py`) — além de verificar variáveis
+   não declaradas, agora verifica chamadas de função: se a função existe, se o
+   nome não pertence a uma variável (e vice-versa), e se o número de
+   parâmetros da chamada bate com o da declaração. Mantém uma tabela global
+   (variáveis e funções) e, ao entrar no corpo de uma função, uma tabela local
+   (parâmetros e variáveis locais) que tem precedência sobre a global.
+4. **Geração de código** (`compci/codegen.py`) — além do que já existia (seção
+   `.bss`, saltos e rótulos), agora emite um rótulo, prólogo e epílogo para
+   cada função, usando a pilha do sistema para parâmetros e variáveis locais
+   (convenção de chamada detalhada mais abaixo).
 
 ## Gramática
 
 ```
-programa ::= decl* corpo
-decl     ::= ident '=' exp ';'
-corpo    ::= '{' cmd* 'return' exp ';' '}'
+programa ::= decl* 'main' '{' cmd* 'return' exp ';' '}'
+decl     ::= vardecl | fundecl
+vardecl  ::= 'var' ident '=' exp ';'
+fundecl  ::= 'fun' ident '(' arglist? ')'
+             '{' vardecl* cmd* 'return' exp ';' '}'
+arglist  ::= ident (',' ident)*
 cmd      ::= se | enquanto | atrib
 se       ::= 'if' exp bloco ('else' bloco)?
 enquanto ::= 'while' exp bloco
@@ -62,22 +71,41 @@ atrib    ::= ident '=' exp ';'
 exp      ::= exp_a ((op_comp) exp_a)*
 exp_a    ::= exp_m (('+' | '-') exp_m)*
 exp_m    ::= prim (('*' | '/') prim)*
-prim     ::= num | ident | '(' exp ')'
+prim     ::= num | ident | '(' exp ')' | chamada
+chamada  ::= ident '(' params? ')'
+params   ::= exp (',' exp)*
 op_comp  ::= '<' | '>' | '<=' | '>=' | '==' | '!='
 num      ::= digito digito*
 ident    ::= letra (letra | digito)*
 ```
 
-As chaves nos corpos do `if` e do `while` **não** são opcionais.
+As chaves nos corpos do `if` e do `while` **não** são opcionais. Variáveis
+globais agora precisam da palavra-chave `var`, e o corpo principal do
+programa é marcado por `main` (em vez de estar solto, como na Cmd).
 
-O comando de atribuição tem a mesma sintaxe da declaração de uma variável, mas
-declarações só podem aparecer antes do corpo, e atribuições só em lugares que
-aceitam comandos. A atribuição **não cria** variáveis: qualquer variável usada
-no programa precisa ser declarada no começo. A distinção entre as duas formas é
-puramente posicional — antes do `{` é declaração, dentro é comando.
+A atribuição **não cria** variáveis: qualquer variável usada no programa
+precisa ser declarada antes (como global, com `var`, ou como parâmetro/local
+de uma função). `return` não é um comando, e portanto não pode aparecer dentro
+de um `if` ou de um `while`.
 
-`return` não é um comando, e portanto não pode aparecer dentro de um `if` ou de
-um `while`.
+Para diferenciar uma referência a variável (`ident`) de uma chamada de função
+(`ident '(' ... ')'`) em `prim`, o analisador olha um token além do
+identificador: se vier `(`, é chamada; senão, é variável (seção 4 do guia).
+
+### Funções
+
+- O corpo de uma função tem zero ou mais declarações de variáveis locais
+  (sempre no início, antes de qualquer comando), zero ou mais comandos, e uma
+  expressão de resultado após `return`.
+- Parâmetros são tratados como variáveis locais. Uma variável local (ou
+  parâmetro) com o mesmo nome de uma variável global **esconde** a global
+  dentro da função.
+- Funções podem ser **diretamente recursivas** (chamar a si mesmas). As
+  declarações são processadas sequencialmente, e uma função é inserida na
+  tabela de símbolos global antes de seu próprio corpo ser verificado — isso
+  permite a recursão direta. Funções **mutuamente** recursivas (uma chamando
+  outra declarada depois dela) são rejeitadas; suportar esse caso é o
+  exercício opcional citado na seção 5.1 do guia, não implementado aqui.
 
 ### Precedência
 
@@ -92,14 +120,6 @@ Três níveis, do mais baixo para o mais alto, todos associativos à esquerda:
 Assim `1 + 2 < 4` agrupa como `(1 + 2) < 4`, e `7 + 5 * 3` como `7 + (5 * 3)`.
 Parênteses continuam disponíveis para forçar outra ordem.
 
-O analisador sintático descendente recursivo tem uma função por não-terminal
-(`analisa_exp`, `analisa_exp_a`, `analisa_exp_m`, `analisa_prim`); cada uma
-trata a repetição `(op ...)*` com um laço que consulta o próximo token sem
-consumi-lo (`_peek`) e só avança (`_proximo_token`) quando o token é um operador
-do nível esperado. Isso evita recursão à esquerda e gera árvores associativas à
-esquerda, já que cada `OpBin` intermediário vira o operando esquerdo do próximo
-operador.
-
 ### Valores de verdade
 
 A linguagem não tem um tipo booleano separado. Um valor igual a zero é
@@ -108,25 +128,11 @@ operadores de comparação produzem exatamente `1` ou `0`.
 
 ## Diferenças em relação ao guia
 
-A Atividade 09 permite alterar a sintaxe concreta e implementar extensões. Esta
-implementação tem três desvios em relação à linguagem Cmd como especificada no
-guia:
-
-1. **Operadores `<=`, `>=` e `!=`** — acrescentados ao mesmo nível de
-   precedência das demais comparações. O guia só define `<`, `>` e `==`, o que
-   obriga a contornos como escrever `m + 1 > n` para dizer `m >= n`.
-2. **Braço `else` opcional** — o guia torna o `else` obrigatório, o que força
-   ramos artificiais como `delta = delta;`. Aqui o `else` pode ser omitido; a
-   ambiguidade é resolvida com um lookahead de um token após o bloco `then`,
-   ligando o `else` ao `if` mais interno.
-3. **Correção de erratas da gramática do guia** — a produção impressa,
-   `<exp> ::= <exp_a> (('<' | '>' | '=')* <exp_a>)*`, tem um `*` a mais e usa
-   `'='` onde a seção de análise léxica descreve o operador de igualdade como
-   `==`. Adotamos `==` e a forma repetida convencional.
-
-Não foram implementados: operadores booleanos `and`/`or`/`not`, comando de
-entrada de dados, criação implícita de variável por atribuição, nem escopo
-léxico aninhado.
+Como na Atividade 09, esta implementação mantém os desvios já adotados para
+Cmd (operadores `<=`, `>=`, `!=`; braço `else` opcional) e não implementa o
+exercício opcional de recursão mútua entre funções (seção 5.1 do guia). Fora
+isso, a linguagem Fun segue o guia à risca: mesma gramática, mesma convenção
+de chamada (parâmetros na pilha, `RBP` como frame pointer, retorno em `RAX`).
 
 ## Uso
 
@@ -144,22 +150,24 @@ para montar. Flags disponíveis:
 | `--ast`    | Imprime a árvore sintática e **interpreta** o programa.       |
 | `--tokens` | Imprime a sequência de tokens.                                |
 
-O modo `--ast` não apenas mostra a árvore: ele executa o programa, percorrendo
-os comandos e avaliando o `return`. Isso o torna uma conferência independente
-do assembly gerado — se o valor impresso por `--ast` e a saída do binário
-divergirem, há bug na geração de código. A suíte de testes usa exatamente esse
-cruzamento.
+O modo `--ast` não apenas mostra a árvore: ele executa o programa (incluindo
+chamadas de função, recursivas ou não), avaliando o `return`. Isso o torna uma
+conferência independente do assembly gerado — se o valor impresso por `--ast`
+e a saída do binário divergirem, há bug na geração de código. A suíte de
+testes usa exatamente esse cruzamento.
 
 ## Erros
 
-| Situação                                 | Saída                | Código de saída |
-|------------------------------------------|----------------------|-----------------|
-| Erro léxico (caractere inválido)          | mensagem em `stderr` | 2               |
-| Erro sintático (programa malformado)      | mensagem em `stderr` | 3               |
-| Erro semântico (variável não declarada)   | mensagem em `stderr` | 4               |
+| Situação                                       | Saída                | Código de saída |
+|-------------------------------------------------|----------------------|-----------------|
+| Erro léxico (caractere inválido)                | mensagem em `stderr` | 2               |
+| Erro sintático (programa malformado)            | mensagem em `stderr` | 3               |
+| Erro semântico (variável/função)                | mensagem em `stderr` | 4               |
 
-Os erros semânticos cobrem dois casos, com mensagens distintas: uso de variável
-não declarada em uma expressão, e atribuição cujo alvo não foi declarado.
+Erros semânticos cobrem: variável não declarada em expressão; atribuição a
+variável não declarada; chamada a função não declarada; chamada com número de
+parâmetros diferente do declarado; um nome de variável usado como se fosse
+função (e vice-versa).
 
 ## Esquema de geração de código
 
@@ -177,27 +185,29 @@ tamanho da expressão:
 Operadores aritméticos: `+` → `add`, `-` → `sub`, `*` → `imul`,
 `/` → `cqo` + `idiv %rbx`.
 
-Variáveis são alocadas na seção `.bss` com `.lcomm var_nome, 8`. Declarar e
-atribuir avaliam a expressão (resultado em `RAX`) e emitem `mov %rax, var_nome`;
-usar uma variável emite `mov var_nome, %rax`. Como a atribuição não cria
-variáveis, a seção `.bss` é alimentada apenas pelas declarações.
+Variáveis globais são alocadas na seção `.bss` com `.lcomm var_nome, 8`.
+Declarar e atribuir avaliam a expressão (resultado em `RAX`) e emitem
+`mov %rax, var_nome`; usar uma variável emite `mov var_nome, %rax`. Variáveis
+locais e parâmetros não usam `.bss` — ficam no registro de ativação da função,
+na pilha (ver "Convenção de chamada" abaixo).
 
 ### Espaço de nomes dos símbolos
 
-O montador tem um único espaço de nomes para tudo: variáveis, rótulos de salto e
-símbolos do `runtime.s` disputam o mesmo conjunto. Definir o mesmo nome duas
-vezes é erro de montagem. Como o programador escolhe livremente os nomes das
-variáveis, os três grupos precisam ser separados **por construção**, e não por
-convenção:
+O montador tem um único espaço de nomes para tudo: variáveis, funções, rótulos
+de salto e símbolos do `runtime.s` disputam o mesmo conjunto. Definir o mesmo
+nome duas vezes é erro de montagem. Como o programador escolhe livremente os
+nomes de variáveis e funções, os grupos precisam ser separados **por
+construção**, e não por convenção:
 
 | Origem | Forma | Por que não colide |
 |--------|-------|--------------------|
-| Variáveis do programa | `var_nome` | o prefixo as afasta de `buffer` e `sair`, do runtime |
-| Rótulos gerados | `.Lfim0`, `.Linicio0`, `.Lfalso0` | um identificador Cmd tem que começar com letra, então nenhum programa produz um símbolo iniciado por `.` |
+| Variáveis globais | `var_nome` | o prefixo as afasta de `buffer` e `sair`, do runtime |
+| Funções | `fun_nome` | mesmo raciocínio — afasta de símbolos do runtime e evita colisão com variáveis (`var_` vs. `fun_`) |
+| Rótulos gerados | `.Lfim0`, `.Linicio0`, `.Lfalso0` | um identificador Fun tem que começar com letra, então nenhum programa produz um símbolo iniciado por `.` |
 
-Sem isso, um programa que declarasse uma variável chamada `Lfim0` ou `buffer`
-geraria assembly que não monta. O prefixo `.L` tem ainda a vantagem de ser
-reconhecido pelo GNU `as` como símbolo local, que não vai para a tabela de
+Sem isso, um programa que declarasse uma variável ou função chamada `Lfim0` ou
+`buffer` geraria assembly que não monta. O prefixo `.L` tem ainda a vantagem de
+ser reconhecido pelo GNU `as` como símbolo local, que não vai para a tabela de
 símbolos do executável.
 
 ### Comparações
@@ -260,10 +270,56 @@ Lfim0:
 Cada `if` e cada `while` recebe um id único de um contador. O `if` gera
 `Lfalso<n>` e `Lfim<n>`; o `while` gera `Linicio<n>` e `Lfim<n>`. Como os ids
 são únicos entre todas as construções, o `Lfim` compartilhado entre os dois
-modelos nunca colide, inclusive com laços aninhados.
+modelos nunca colide, inclusive com laços aninhados. O contador é reiniciado
+para cada função (e para o bloco `main`), já que cada uma usa sua própria
+instância de `Gerador`.
 
-O contador vive na instância da classe `Gerador`, não no módulo: cada
-compilação começa do zero, o que mantém o assembly determinístico e testável.
+### Convenção de chamada
+
+Parâmetros e variáveis locais ficam na pilha do sistema, o que permite que
+cada chamada (inclusive chamadas recursivas) tenha sua própria cópia. O valor
+de retorno sempre volta em `RAX`.
+
+**Na chamada** (`f(a1, ..., an)`):
+
+1. Calcula e empilha o valor de cada parâmetro, na ordem **inversa** — do
+   último para o primeiro. Isso faz o primeiro parâmetro ficar mais perto do
+   topo da pilha logo após o `call`.
+2. `call fun_f`.
+3. Depois do `call`, soma `8*n` a `RSP` para descartar os parâmetros
+   empilhados (quem chama limpa a pilha).
+
+**No corpo da função**, com `L` variáveis locais:
+
+```
+fun_f:
+    push %rbp              # salva o RBP do chamador
+    sub $8*L, %rsp          # espaco para as L variaveis locais (se L > 0)
+    mov %rsp, %rbp          # RBP = base do registro de ativacao desta chamada
+    ...                     # locais, comandos e expressao de resultado
+    add $8*L, %rsp          # desfaz o espaco das locais (se L > 0)
+    pop %rbp                # restaura o RBP do chamador
+    ret
+```
+
+Deslocamentos relativos a `RBP` (calculados em `codegen._offsets_locais`):
+
+- Variável local de índice `i` (na ordem declarada): `8*i` — a primeira local
+  fica em `0(%rbp)`, a segunda em `8(%rbp)`, etc.
+- Parâmetro de índice `i` (na ordem declarada): `8*L + 16 + 8*i` — os 16 bytes
+  extras são o `RBP` salvo e o endereço de retorno empilhados entre as locais
+  e os parâmetros.
+
+Por exemplo, para `fun f(x) { var y = ...; var z = ...; return y*z; }`
+(`L = 2`, um parâmetro): `y` em `0(%rbp)`, `z` em `8(%rbp)`, `x` em
+`32(%rbp)` (= `8*2 + 16 + 8*0`). O teste `tests/funcoes.t` confere esse
+assembly linha a linha.
+
+Como o acesso a locais e parâmetros usa `RBP` (que só muda no prólogo/epílogo
+da própria função) em vez de `RSP` (que sobe e desce a cada `push`/`pop` de
+uma expressão), os deslocamentos continuam válidos durante toda a execução do
+corpo, mesmo com expressões aninhadas usando a pilha para valores
+intermediários.
 
 ## Montar e executar
 
@@ -271,7 +327,7 @@ compilação começa do zero, o que mantém o assembly determinístico e testáv
 execução:
 
 ```
-cd compci && bash build.sh tests/soma_loop.ci
+cd compci && bash build.sh tests/fun_fatorial.ci
 ```
 
 Requer `runtime.s` no diretório de trabalho (o assembly gerado usa
@@ -279,24 +335,38 @@ Requer `runtime.s` no diretório de trabalho (o assembly gerado usa
 
 ## Rodar os testes
 
-A suíte usa [cram](https://bitheap.org/cram/) e cobre as quatro etapas:
+A suíte usa [cram](https://bitheap.org/cram/) e cobre as quatro etapas, mais um
+arquivo dedicado a funções:
 
 - `compci/tests/lexer.t` — tokens, incluindo a distinção entre `=` e `==`, os
-  operadores de dois caracteres (`<=`, `>=`, `!=`), palavras-chave versus
-  identificadores que começam com elas (`ifx`), e erros léxicos.
+  operadores de dois caracteres (`<=`, `>=`, `!=`), a vírgula, as palavras-chave
+  `var`/`main`/`fun` versus identificadores que começam com elas, e erros
+  léxicos.
 - `compci/tests/parser.t` — árvores de `if`/`else`, `if` sem `else`, `while` e
-  atribuição; precedência e associatividade dos três níveis; erros sintáticos.
+  atribuição, agora com `var` e `main`; precedência e associatividade dos três
+  níveis; erros sintáticos.
 - `compci/tests/semantic.t` — variável não declarada em expressão, dentro de
   `if` e de `while`, e atribuição a variável não declarada.
-- `compci/tests/codegen.t` — assembly determinístico (comparação, `if`, `while`,
-  seção `.bss`) e testes **end-to-end** que montam, linkam e executam o binário,
-  conferindo o resultado numérico. Inclui `colisao_rotulo.ci` e
+- `compci/tests/codegen.t` — assembly determinístico (comparação, `if`,
+  `while`, seção `.bss`) e testes **end-to-end** que montam, linkam e executam
+  o binário, conferindo o resultado numérico. Inclui `colisao_rotulo.ci` e
   `colisao_runtime.ci`, que declaram variáveis com os nomes dos rótulos gerados
   e dos símbolos do runtime — os casos que o esquema de prefixos existe para
   tornar impossíveis.
+- `compci/tests/funcoes.t` — testes específicos da Atividade 10: função
+  diretamente recursiva (`fun_fatorial.ci`, fatorial de 5), função sem
+  parâmetros e sem locais chamada duas vezes (`fun_sem_param_sem_local.ci`),
+  função com parâmetros e sem locais (`fun_param_sem_local.ci`), função com
+  locais e sem parâmetros (`fun_local_sem_param.ci`), uma função chamando
+  outra (`fun_chama_outra.ci`), o exemplo do guia com dois locais e um
+  parâmetro (`fun_guia.ci`, conferindo os deslocamentos de pilha linha a
+  linha), variável local escondendo uma global de mesmo nome
+  (`fun_shadow.ci`), e os erros semânticos específicos de função (chamada não
+  declarada, aridade errada, nome de variável usado como função e vice-versa,
+  recursão mútua rejeitada).
 
-Os programas de exemplo do guia estão incluídos e são executados de ponta a
-ponta:
+Os programas de exemplo do guia de Cmd continuam incluídos e são executados de
+ponta a ponta:
 
 | Programa             | O que calcula                                   | Resultado |
 |----------------------|-------------------------------------------------|-----------|
@@ -304,6 +374,7 @@ ponta:
 | `tests/soma_loop.ci` | soma dos inteiros de 1 a 9                      | 45        |
 | `tests/resto.ci`     | resto de 10 por 4, por subtração sucessiva      | 2         |
 | `tests/mdc.ci`       | máximo divisor comum de 18 e 12                 | 6         |
+| `tests/fun_fatorial.ci` | fatorial de 5, com função recursiva          | 120       |
 
 Para cada um deles, o teste compara a saída do binário com o valor calculado
 pelo interpretador (`--ast`), de modo que uma divergência aponta bug na geração
@@ -314,14 +385,14 @@ forma recomendada de rodar a suíte completa é via Docker:
 
 ```
 docker build -t compci compci/
-docker run --rm compci    # roda lexer.t, parser.t, semantic.t e codegen.t
+docker run --rm compci    # roda lexer.t, parser.t, semantic.t, codegen.t e funcoes.t
 ```
 
 Localmente, com binutils instalado:
 
 ```
 pip install cram
-cd compci && cram tests/lexer.t tests/parser.t tests/semantic.t tests/codegen.t
+cd compci && cram tests/lexer.t tests/parser.t tests/semantic.t tests/codegen.t tests/funcoes.t
 ```
 
 Sem binutils, dá para rodar as etapas que não montam código:

@@ -5,9 +5,11 @@ from lexer import (
     DIV,
     ENQUANTO,
     EOF,
+    FUN,
     IDENTIFICADOR,
     IGUAL,
     IGUALDADE,
+    MAIN,
     MAIOR,
     MAIOR_IGUAL,
     MENOR,
@@ -22,6 +24,8 @@ from lexer import (
     SENAO,
     SOMA,
     SUB,
+    VAR,
+    VIRGULA,
 )
 
 NIVEL_COMPARACAO = {MENOR, MAIOR, MENOR_IGUAL, MAIOR_IGUAL, IGUALDADE, DIFERENTE}
@@ -96,20 +100,29 @@ class OpBin(Exp):
 
 class Programa(Exp):
     def __init__(self, declaracoes, comandos, exp_retorno):
+        # declaracoes mistura Declaracao (variavel global) e FuncDecl (funcao),
+        # na ordem em que aparecem no texto: a analise semantica processa essa
+        # lista sequencialmente, entao a ordem importa (permite referenciar
+        # apenas o que foi declarado antes, exceto recursao direta)
         self.declaracoes = declaracoes
         self.comandos = comandos
         self.exp_retorno = exp_retorno
 
     def avaliar(self, env):
+        funcoes = {}
         for decl in self.declaracoes:
-            env[decl.nome] = decl.exp.avaliar(env)
+            if isinstance(decl, FuncDecl):
+                funcoes[decl.nome] = decl
+            else:
+                env[decl.nome] = decl.exp.avaliar(env)
+        env["__funcoes__"] = funcoes
         for cmd in self.comandos:
             cmd.executar(env)
         return self.exp_retorno.avaliar(env)
 
     def imprimir(self):
         linhas = [decl.imprimir() for decl in self.declaracoes]
-        linhas.append("{")
+        linhas.append("main {")
         linhas.extend(cmd.imprimir(1) for cmd in self.comandos)
         linhas.append(f"  return {self.exp_retorno.imprimir()};")
         linhas.append("}")
@@ -122,7 +135,45 @@ class Declaracao:
         self.exp = exp
 
     def imprimir(self):
-        return f"{self.nome} = {self.exp.imprimir()};"
+        return f"var {self.nome} = {self.exp.imprimir()};"
+
+
+class FuncDecl:
+    def __init__(self, nome, params, vardecls, comandos, exp_retorno):
+        self.nome = nome
+        self.params = params
+        self.vardecls = vardecls
+        self.comandos = comandos
+        self.exp_retorno = exp_retorno
+
+    def imprimir(self):
+        linhas = [f"fun {self.nome}({', '.join(self.params)}) {{"]
+        linhas.extend(f"  {v.imprimir()}" for v in self.vardecls)
+        linhas.extend(cmd.imprimir(1) for cmd in self.comandos)
+        linhas.append(f"  return {self.exp_retorno.imprimir()};")
+        linhas.append("}")
+        return "\n".join(linhas)
+
+
+class Chamada(Exp):
+    def __init__(self, nome, args):
+        self.nome = nome
+        self.args = args
+
+    def avaliar(self, env):
+        func = env["__funcoes__"][self.nome]
+        valores = [arg.avaliar(env) for arg in self.args]
+        env_local = dict(zip(func.params, valores))
+        for vardecl in func.vardecls:
+            env_local[vardecl.nome] = vardecl.exp.avaliar(env_local)
+        env_local["__funcoes__"] = env["__funcoes__"]
+        for cmd in func.comandos:
+            cmd.executar(env_local)
+        return func.exp_retorno.avaliar(env_local)
+
+    def imprimir(self):
+        args = ", ".join(arg.imprimir() for arg in self.args)
+        return f"{self.nome}({args})"
 
 
 class Var(Exp):
@@ -203,11 +254,14 @@ class Enquanto(Cmd):
 
 # --- Analisador sintático ---
 #
-# Gramatica Cmd (Atividade 09):
+# Gramatica Fun (Atividade 10):
 #
-#   programa ::= decl* corpo
-#   decl     ::= ident '=' exp ';'
-#   corpo    ::= '{' cmd* 'return' exp ';' '}'
+#   programa ::= decl* 'main' '{' cmd* 'return' exp ';' '}'
+#   decl     ::= vardecl | fundecl
+#   vardecl  ::= 'var' ident '=' exp ';'
+#   fundecl  ::= 'fun' ident '(' arglist? ')'
+#                '{' vardecl* cmd* 'return' exp ';' '}'
+#   arglist  ::= ident (',' ident)*
 #   cmd      ::= se | enquanto | atrib
 #   se       ::= 'if' exp bloco ('else' bloco)?      # else opcional (extensao)
 #   enquanto ::= 'while' exp bloco
@@ -216,11 +270,18 @@ class Enquanto(Cmd):
 #   exp      ::= exp_a ((op_comp) exp_a)*
 #   exp_a    ::= exp_m (('+' | '-') exp_m)*
 #   exp_m    ::= prim (('*' | '/') prim)*
-#   prim     ::= num | ident | '(' exp ')'
+#   prim     ::= num | ident | '(' exp ')' | chamada
+#   chamada  ::= ident '(' params? ')'
+#   params   ::= exp (',' exp)*
 #   op_comp  ::= '<' | '>' | '<=' | '>=' | '==' | '!='
 #
 # Tres niveis de precedencia, do mais baixo para o mais alto: comparacao,
 # aditivo, multiplicativo. Todos associativos a esquerda.
+#
+# Para diferenciar uma referencia a variavel de uma chamada de funcao em
+# `prim`, ambas comecando com IDENTIFICADOR, e preciso olhar um token alem:
+# se vier um '(' logo depois do identificador, e chamada; caso contrario, e
+# variavel (secao 4 do guia da Atividade 10).
 
 class Parser:
     def __init__(self, tokens):
@@ -243,20 +304,68 @@ class Parser:
         return tok
 
     def analisa_programa(self):
-        # declaracoes e atribuicoes tem a mesma forma `ident = exp;`; a
-        # distincao e posicional — antes do '{' e declaracao, dentro e comando
+        # decl* : 'var' inicia uma declaracao de variavel global, 'fun' inicia
+        # uma declaracao de funcao; qualquer outro token encerra a lista de
+        # declaracoes e exige a palavra-chave 'main'
         declaracoes = []
-        while self._peek().tipo == IDENTIFICADOR:
-            declaracoes.append(self.analisa_declaracao())
+        while True:
+            tipo = self._peek().tipo
+            if tipo == VAR:
+                declaracoes.append(self.analisa_vardecl())
+            elif tipo == FUN:
+                declaracoes.append(self.analisa_fundecl())
+            else:
+                break
+        self._verifica_prox(MAIN)
         comandos, exp_retorno = self.analisa_corpo()
         return Programa(declaracoes, comandos, exp_retorno)
 
-    def analisa_declaracao(self):
+    def analisa_vardecl(self):
+        self._verifica_prox(VAR)
         tok_id = self._verifica_prox(IDENTIFICADOR)
         self._verifica_prox(IGUAL)
         exp = self.analisa_exp()
         self._verifica_prox(PONTO_VIRGULA)
         return Declaracao(tok_id.lexema, exp)
+
+    def analisa_fundecl(self):
+        self._verifica_prox(FUN)
+        tok_id = self._verifica_prox(IDENTIFICADOR)
+        self._verifica_prox(PAREN_ESQ)
+        params = self.analisa_lista_parametros_formais()
+        self._verifica_prox(PAREN_DIR)
+        self._verifica_prox(CHAVE_ESQ)
+        vardecls = []
+        while self._peek().tipo == VAR:
+            vardecls.append(self.analisa_vardecl())
+        comandos = self.analisa_lista_cmd()
+        self._verifica_prox(RETORNO)
+        exp_retorno = self.analisa_exp()
+        self._verifica_prox(PONTO_VIRGULA)
+        self._verifica_prox(CHAVE_DIR)
+        return FuncDecl(tok_id.lexema, params, vardecls, comandos, exp_retorno)
+
+    def analisa_lista_parametros_formais(self):
+        # loop no estilo do pseudo-codigo do guia (secao 4): olha o proximo
+        # token ate encontrar ')', consumindo uma virgula entre parametros
+        params = []
+        if self._peek().tipo == PAREN_DIR:
+            return params
+        params.append(self._verifica_prox(IDENTIFICADOR).lexema)
+        while self._peek().tipo == VIRGULA:
+            self._proximo_token()
+            params.append(self._verifica_prox(IDENTIFICADOR).lexema)
+        return params
+
+    def analisa_lista_argumentos(self):
+        args = []
+        if self._peek().tipo == PAREN_DIR:
+            return args
+        args.append(self.analisa_exp())
+        while self._peek().tipo == VIRGULA:
+            self._proximo_token()
+            args.append(self.analisa_exp())
+        return args
 
     def analisa_corpo(self):
         self._verifica_prox(CHAVE_ESQ)
@@ -350,6 +459,11 @@ class Parser:
         if tok.tipo == NUMERO:
             return Const(int(tok.lexema))
         if tok.tipo == IDENTIFICADOR:
+            if self._peek().tipo == PAREN_ESQ:
+                self._proximo_token()
+                args = self.analisa_lista_argumentos()
+                self._verifica_prox(PAREN_DIR)
+                return Chamada(tok.lexema, args)
             return Var(tok.lexema)
         if tok.tipo == PAREN_ESQ:
             exp = self.analisa_exp()

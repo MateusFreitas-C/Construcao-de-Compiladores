@@ -1,5 +1,5 @@
-buffer = 5;
-sair = 3;
-{
+var buffer = 5;
+var sair = 3;
+main {
   return buffer + sair;
 }

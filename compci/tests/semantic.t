@@ -28,8 +28,8 @@ o valor muda:
 
   $ python3 "$TESTDIR/../compci.py" --ast "$TESTDIR/sem_atrib_ok.ci"
   arvore:
-  x = 1;
-  {
+  var x = 1;
+  main {
     x = (x + 41);
     return x;
   }

@@ -1,60 +1,64 @@
-Analisador lexico Cmd — programa OK do exemplo do PDF:
+Analisador lexico Fun — programa OK do exemplo do PDF, agora dentro do bloco
+`main`:
 
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/ok.ci"
-  <ChaveEsq, "{", 0>
-  <Retorno, "return", 4>
-  <ParenEsq, "(", 11>
-  <Numero, "33", 12>
-  <Soma, "+", 15>
-  <ParenEsq, "(", 17>
-  <Numero, "912", 18>
-  <Mult, "*", 22>
-  <Numero, "11", 24>
-  <ParenDir, ")", 26>
-  <ParenDir, ")", 27>
-  <PontoVirgula, ";", 28>
-  <ChaveDir, "}", 30>
+  <Main, "main", 0>
+  <ChaveEsq, "{", 5>
+  <Retorno, "return", 9>
+  <ParenEsq, "(", 16>
+  <Numero, "33", 17>
+  <Soma, "+", 20>
+  <ParenEsq, "(", 22>
+  <Numero, "912", 23>
+  <Mult, "*", 27>
+  <Numero, "11", 29>
+  <ParenDir, ")", 31>
+  <ParenDir, ")", 32>
+  <PontoVirgula, ";", 33>
+  <ChaveDir, "}", 35>
 
 Literal isolado:
 
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/literal.ci"
-  <ChaveEsq, "{", 0>
-  <Retorno, "return", 4>
-  <Numero, "333", 11>
-  <PontoVirgula, ";", 14>
-  <ChaveDir, "}", 16>
+  <Main, "main", 0>
+  <ChaveEsq, "{", 5>
+  <Retorno, "return", 9>
+  <Numero, "333", 16>
+  <PontoVirgula, ";", 19>
+  <ChaveDir, "}", 21>
 
 Expressao com varios tipos de espaco em branco — mesma sequencia de tipos/lexemas:
 
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/espacos.ci"
-  <ChaveEsq, "{", 0>
-  <Retorno, "return", 4>
-  <ParenEsq, "(", 11>
-  <Numero, "3", 14>
-  <Soma, "+", 18>
-  <ParenEsq, "(", 23>
-  <Numero, "4", 24>
-  <Soma, "+", 26>
+  <Main, "main", 0>
+  <ChaveEsq, "{", 5>
+  <Retorno, "return", 9>
+  <ParenEsq, "(", 16>
+  <Numero, "3", 19>
+  <Soma, "+", 23>
   <ParenEsq, "(", 28>
-  <Numero, "11", 29>
-  <Mult, "*", 32>
-  <Numero, "7", 34>
-  <ParenDir, ")", 35>
-  <ParenDir, ")", 36>
+  <Numero, "4", 29>
+  <Soma, "+", 31>
+  <ParenEsq, "(", 33>
+  <Numero, "11", 34>
+  <Mult, "*", 37>
+  <Numero, "7", 39>
   <ParenDir, ")", 40>
-  <PontoVirgula, ";", 41>
-  <ChaveDir, "}", 43>
+  <ParenDir, ")", 41>
+  <ParenDir, ")", 45>
+  <PontoVirgula, ";", 46>
+  <ChaveDir, "}", 48>
 
 Erro lexico — mensagem em stderr (redirecionada) e exit code != 0:
 
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/erro.ci" 2>&1
-  Erro lexico na posicao 14: caractere invalido '$'
+  Erro lexico na posicao 19: caractere invalido '$'
   [2]
 
 Erro lexico com variavel (numero seguido de letra):
 
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/test_lex_err.ci" 2>&1
-  Erro lexico na posicao 7: caractere invalido 'a'
+  Erro lexico na posicao 11: caractere invalido 'a'
   [2]
 
 Os seis operadores de comparacao sao reconhecidos por maximal munch. O `sed`
@@ -75,41 +79,50 @@ mais seis dentro dos `if`) e nenhuma delas vira Igualdade:
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_operadores.ci" | grep -c '^<Igual,'
   7
 
-Chaves e a palavra-chave `if`:
+Palavra-chave `var` na declaracao global, chaves e a palavra-chave `if`:
 
-  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_operadores.ci" | head -6
-  <Identificador, "a", 0>
-  <Igual, "=", 2>
-  <Numero, "1", 4>
-  <PontoVirgula, ";", 5>
-  <ChaveEsq, "{", 7>
-  <Se, "if", 11>
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_operadores.ci" | head -9
+  <Var, "var", 0>
+  <Identificador, "a", 4>
+  <Igual, "=", 6>
+  <Numero, "1", 8>
+  <PontoVirgula, ";", 9>
+  <Main, "main", 11>
+  <ChaveEsq, "{", 16>
+  <Se, "if", 20>
+  <Identificador, "a", 23>
 
 Posicoes exatas — um token de dois caracteres reporta a posicao do PRIMEIRO
-caractere, entao `<=` fica em 13 e nao em 14:
+caractere, entao `<=` fica em 18 e nao em 19:
 
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_pos.ci"
-  <ChaveEsq, "{", 0>
-  <Retorno, "return", 4>
-  <Numero, "1", 11>
-  <MenorIgual, "<=", 13>
-  <Numero, "2", 16>
-  <PontoVirgula, ";", 17>
-  <ChaveDir, "}", 19>
+  <Main, "main", 0>
+  <ChaveEsq, "{", 5>
+  <Retorno, "return", 9>
+  <Numero, "1", 16>
+  <MenorIgual, "<=", 18>
+  <Numero, "2", 21>
+  <PontoVirgula, ";", 22>
+  <ChaveDir, "}", 24>
 
 Identificador que comeca com palavra-chave continua sendo identificador, e
-`return` de verdade vira palavra-chave:
+`return`/`var`/`main` de verdade viram palavra-chave:
 
-  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_palavras.ci" | sed 's/, [0-9]*>$/>/' | grep -E 'Identificador|Retorno|Senao|Enquanto'
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_palavras.ci" | sed 's/, [0-9]*>$/>/' | grep -E 'Identificador|Retorno|Senao|Enquanto|Var|Main'
+  <Var, "var">
   <Identificador, "ifx">
+  <Var, "var">
   <Identificador, "elsey">
+  <Var, "var">
   <Identificador, "whilez">
+  <Var, "var">
   <Identificador, "returno">
+  <Main, "main">
   <Retorno, "return">
   <Identificador, "ifx">
 
 `!` sozinho e erro lexico:
 
   $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_bang.ci" 2>&1
-  Erro lexico na posicao 13: caractere invalido '!'
+  Erro lexico na posicao 18: caractere invalido '!'
   [2]

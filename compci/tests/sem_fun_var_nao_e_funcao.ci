@@ -1,0 +1,4 @@
+var f = 3;
+main {
+  return f(1);
+}

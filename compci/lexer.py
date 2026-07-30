@@ -24,6 +24,10 @@ SE = "Se"
 SENAO = "Senao"
 ENQUANTO = "Enquanto"
 RETORNO = "Retorno"
+VIRGULA = "Virgula"
+FUN = "Fun"
+VAR = "Var"
+MAIN = "Main"
 
 # palavras-chave seguem as regras de identificador; sao separadas depois de
 # reconhecer o lexema (ver tokenizar)
@@ -32,6 +36,9 @@ PALAVRAS_CHAVE = {
     "else": SENAO,
     "while": ENQUANTO,
     "return": RETORNO,
+    "fun": FUN,
+    "var": VAR,
+    "main": MAIN,
 }
 
 OPERADORES = {
@@ -70,6 +77,9 @@ def tokenizar(texto):
             i += 1
         elif c == ";":
             tokens.append(Token(PONTO_VIRGULA, c, i))
+            i += 1
+        elif c == ",":
+            tokens.append(Token(VIRGULA, c, i))
             i += 1
         elif c == "{":
             tokens.append(Token(CHAVE_ESQ, c, i))

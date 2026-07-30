@@ -1,4 +1,4 @@
-Gerador de codigo Cmd (Atividade 09).
+Gerador de codigo Fun (Atividade 10).
 
 Os testes end-to-end montam (as), linkam (ld) e executam o binario, conferindo
 a saida numerica. Rodam dentro do diretorio temporario do cram, para onde o
@@ -13,7 +13,7 @@ primeiro:
 
   $ python3 "$TESTDIR/../compci.py" --stdout "$TESTDIR/soma.ci"
       #
-      # codigo gerado pelo compilador Cmd
+      # codigo gerado pelo compilador Fun
       #
       .section .text
       .globl _start
@@ -25,6 +25,7 @@ primeiro:
       add %rbx, %rax
       call imprime_num
       call sair
+  
       .include "runtime.s"
 
 Assembly deterministico de uma comparacao — note o `xor` ANTES do `cmp` (ele
@@ -33,7 +34,7 @@ uso de %cl porque SETcc so escreve 8 bits:
 
   $ python3 "$TESTDIR/../compci.py" --stdout "$TESTDIR/prec_comparacao.ci"
       #
-      # codigo gerado pelo compilador Cmd
+      # codigo gerado pelo compilador Fun
       #
       .section .text
       .globl _start
@@ -52,6 +53,7 @@ uso de %cl porque SETcc so escreve 8 bits:
       mov %rcx, %rax
       call imprime_num
       call sair
+  
       .include "runtime.s"
 
 Assembly deterministico do comando de repeticao — rotulos na coluna zero,
