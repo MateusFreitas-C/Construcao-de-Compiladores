@@ -33,6 +33,7 @@ loop_L0:
   jz print_L0
   movb $45, buffer(%rcx)
   dec %rcx
+  inc %r9                 # o sinal '-' conta no tamanho da string
   jmp print_L0
 
 printzero_L0:

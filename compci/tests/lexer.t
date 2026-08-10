@@ -121,8 +121,41 @@ Identificador que comeca com palavra-chave continua sendo identificador, e
   <Retorno, "return">
   <Identificador, "ifx">
 
-`!` sozinho e erro lexico:
+`!` sozinho deixou de ser erro lexico: agora e o operador de negacao. O
+programa `return 1 ! 2;` continua invalido, mas o erro migrou para o
+analisador sintatico — `!` e prefixo, nao infixo:
 
-  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_bang.ci" 2>&1
-  Erro lexico na posicao 18: caractere invalido '!'
+  $ python3 "$TESTDIR/../compci.py" --stdout "$TESTDIR/lex_bang.ci"
+  Erro sintatico na posicao 18: esperado 'PontoVirgula', encontrado '!'
+  [3]
+
+Um caractere que nao pertence a linguagem continua sendo erro lexico:
+
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_invalido.ci" 2>&1
+  Erro lexico na posicao 18: caractere invalido '@'
   [2]
+
+`&` e `|` so existem em pares (`&&` e `||`); sozinhos sao erro lexico:
+
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_e_solto.ci" 2>&1
+  Erro lexico na posicao 18: caractere invalido '&'
+  [2]
+
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_ou_solto.ci" 2>&1
+  Erro lexico na posicao 18: caractere invalido '|'
+  [2]
+
+Colchetes viram tokens proprios, usados tanto na declaracao de array
+(`var a[2];`) quanto na indexacao (`a[0]`):
+
+  $ python3 "$TESTDIR/../compci.py" --tokens "$TESTDIR/lex_colchetes.ci" | sed 's/, [0-9]*>$/>/' | grep -E 'Colchete|Var|Identificador'
+  <Var, "var">
+  <Identificador, "a">
+  <ColcheteEsq, "[">
+  <ColcheteDir, "]">
+  <Identificador, "a">
+  <ColcheteEsq, "[">
+  <ColcheteDir, "]">
+  <Identificador, "a">
+  <ColcheteEsq, "[">
+  <ColcheteDir, "]">

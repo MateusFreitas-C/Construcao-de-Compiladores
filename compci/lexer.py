@@ -28,6 +28,13 @@ VIRGULA = "Virgula"
 FUN = "Fun"
 VAR = "Var"
 MAIN = "Main"
+COLCHETE_ESQ = "ColcheteEsq"
+COLCHETE_DIR = "ColcheteDir"
+RESTO = "Resto"
+E_LOGICO = "ELogico"
+OU_LOGICO = "OuLogico"
+NAO_LOGICO = "NaoLogico"
+ESCREVE = "Escreve"
 
 # palavras-chave seguem as regras de identificador; sao separadas depois de
 # reconhecer o lexema (ver tokenizar)
@@ -39,6 +46,7 @@ PALAVRAS_CHAVE = {
     "fun": FUN,
     "var": VAR,
     "main": MAIN,
+    "escreve": ESCREVE,
 }
 
 OPERADORES = {
@@ -46,6 +54,7 @@ OPERADORES = {
     "-": SUB,
     "*": MULT,
     "/": DIV,
+    "%": RESTO,
 }
 
 ESPACOS = (" ", "\t", "\n", "\r")
@@ -81,6 +90,12 @@ def tokenizar(texto):
         elif c == ",":
             tokens.append(Token(VIRGULA, c, i))
             i += 1
+        elif c == "[":
+            tokens.append(Token(COLCHETE_ESQ, c, i))
+            i += 1
+        elif c == "]":
+            tokens.append(Token(COLCHETE_DIR, c, i))
+            i += 1
         elif c == "{":
             tokens.append(Token(CHAVE_ESQ, c, i))
             i += 1
@@ -109,8 +124,23 @@ def tokenizar(texto):
                 tokens.append(Token(MAIOR, c, i))
                 i += 1
         elif c == "!":
+            # maximal munch: '!=' tem prioridade sobre o '!' de negacao
             if i + 1 < n and texto[i + 1] == "=":
                 tokens.append(Token(DIFERENTE, "!=", i))
+                i += 2
+            else:
+                tokens.append(Token(NAO_LOGICO, c, i))
+                i += 1
+        elif c == "&":
+            # '&' sozinho nao existe na linguagem; so o par '&&'
+            if i + 1 < n and texto[i + 1] == "&":
+                tokens.append(Token(E_LOGICO, "&&", i))
+                i += 2
+            else:
+                raise ErroLexico(i, c)
+        elif c == "|":
+            if i + 1 < n and texto[i + 1] == "|":
+                tokens.append(Token(OU_LOGICO, "||", i))
                 i += 2
             else:
                 raise ErroLexico(i, c)

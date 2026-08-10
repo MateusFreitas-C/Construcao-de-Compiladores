@@ -1,0 +1,4 @@
+var x = 1;
+main {
+  return x[0];
+}

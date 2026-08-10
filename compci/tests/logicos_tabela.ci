@@ -1,0 +1,14 @@
+main {
+  escreve 1 && 1;
+  escreve 1 && 0;
+  escreve 0 && 1;
+  escreve 0 && 0;
+  escreve 1 || 1;
+  escreve 1 || 0;
+  escreve 0 || 1;
+  escreve 0 || 0;
+  escreve !0;
+  escreve !1;
+  escreve !!7;
+  return 0;
+}

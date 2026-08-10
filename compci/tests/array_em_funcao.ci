@@ -1,0 +1,17 @@
+var a[4];
+fun soma() {
+  var s = 0;
+  var i = 0;
+  while i < 4 {
+    s = s + a[i];
+    i = i + 1;
+  }
+  return s;
+}
+main {
+  a[0] = 10;
+  a[1] = 20;
+  a[2] = 30;
+  a[3] = 40;
+  return soma();
+}

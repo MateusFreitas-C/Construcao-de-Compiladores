@@ -64,7 +64,7 @@ def main():
         print("arvore:")
         print(arvore.imprimir())
         try:
-            print(f"valor: {arvore.avaliar({})}")
+            print(f"valor: {arvore.avaliar()}")
         except Exception as e:
             print(f"erro na avaliacao: {e}")
         return

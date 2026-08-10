@@ -1,0 +1,7 @@
+fun f() {
+  var v[3];
+  return 1;
+}
+main {
+  return f();
+}

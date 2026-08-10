@@ -1,0 +1,5 @@
+var a[3];
+main {
+  a[1] = 7;
+  return a[1];
+}

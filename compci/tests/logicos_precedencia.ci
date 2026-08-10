@@ -1,0 +1,7 @@
+main {
+  escreve 1 || 0 && 0;
+  escreve 2 > 1 && 3 > 2;
+  escreve !1 || 5 > 3;
+  escreve 1 + 1 == 2 && 6 % 4 == 2;
+  return 0;
+}

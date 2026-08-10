@@ -1,0 +1,5 @@
+var a[4];
+main {
+  a = 5;
+  return 0;
+}

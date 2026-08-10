@@ -12,4 +12,4 @@ COPY . /compci
 RUN chmod +x build.sh
 
 # por padrao roda a suite completa de testes do compilador Fun
-CMD ["cram", "tests/lexer.t", "tests/parser.t", "tests/semantic.t", "tests/codegen.t", "tests/funcoes.t"]
+CMD ["cram", "tests/lexer.t", "tests/parser.t", "tests/semantic.t", "tests/codegen.t", "tests/funcoes.t", "tests/arrays.t", "tests/extensoes.t"]

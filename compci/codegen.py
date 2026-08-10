@@ -1,4 +1,20 @@
-from parser import Atribuicao, Chamada, Const, Declaracao, Enquanto, FuncDecl, OpBin, Se, Var
+from parser import (
+    Atribuicao,
+    AtribuicaoArray,
+    Chamada,
+    Const,
+    Declaracao,
+    DeclaracaoArray,
+    Enquanto,
+    Escreve,
+    FuncDecl,
+    IndiceArray,
+    Nao,
+    OpBin,
+    OpLogico,
+    Se,
+    Var,
+)
 
 # instrucao aritmetica por operador (esquerdo em RAX, direito em RBX)
 INSTRUCAO = {
@@ -117,6 +133,14 @@ class Gerador:
         if isinstance(no, Var):
             self.emitir(f"mov {self._operando(no.nome)}, %rax")
             return
+        if isinstance(no, IndiceArray):
+            # o x86-64 tem um modo de enderecamento base + indice escalado que
+            # faz a leitura inteira em uma instrucao: com o indice em RAX,
+            # `var_a(,%rax,8)` ja e o elemento. Nao precisa de registrador extra
+            # nem de multiplicacao explicita pelo tamanho do elemento.
+            self.gerar_exp(no.indice)
+            self.emitir(f"mov {_simbolo(no.nome)}(,%rax,8), %rax")
+            return
         if isinstance(no, Chamada):
             for arg in reversed(no.args):
                 self.gerar_exp(arg)
@@ -141,8 +165,48 @@ class Gerador:
             elif no.op == "/":
                 self.emitir("cqo")
                 self.emitir("idiv %rbx")
+            elif no.op == "%":
+                # a mesma instrucao idiv produz quociente em RAX e resto em
+                # RDX; o resto sai de graca, basta ler o outro registrador
+                self.emitir("cqo")
+                self.emitir("idiv %rbx")
+                self.emitir("mov %rdx, %rax")
             else:
                 self.emitir(INSTRUCAO[no.op])
+            return
+        if isinstance(no, Nao):
+            # mesmo padrao das comparacoes: xor ANTES do cmp, porque o xor
+            # limpa os flags que o SETcc vai ler
+            self.gerar_exp(no.exp)
+            self.emitir("xor %rcx, %rcx")
+            self.emitir("cmp $0, %rax")
+            self.emitir("setz %cl")
+            self.emitir("mov %rcx, %rax")
+            return
+        if isinstance(no, OpLogico):
+            # curto-circuito: o operando direito so e avaliado se o esquerdo
+            # nao decidiu o resultado sozinho. Por isso o esquerdo e gerado
+            # primeiro aqui, ao contrario das operacoes binarias — e por isso
+            # tambem que nao da para reaproveitar o esquema de pilha: o codigo
+            # do direito fica sob um salto condicional.
+            n = self._novo_id()
+            curto = _rotulo("curto", n)
+            fim = _rotulo("fim", n)
+            # `&&` curto-circuita no falso (jz), `||` no verdadeiro (jnz)
+            salto = "jz" if no.op == "&&" else "jnz"
+            decidido = "0" if no.op == "&&" else "1"
+            outro = "1" if no.op == "&&" else "0"
+            self.gerar_exp(no.esq)
+            self.emitir("cmp $0, %rax")
+            self.emitir(f"{salto} {curto}")
+            self.gerar_exp(no.dir)
+            self.emitir("cmp $0, %rax")
+            self.emitir(f"{salto} {curto}")
+            self.emitir(f"mov ${outro}, %rax")
+            self.emitir(f"jmp {fim}")
+            self.emitir(f"{curto}:")
+            self.emitir(f"mov ${decidido}, %rax")
+            self.emitir(f"{fim}:")
             return
         raise TypeError(f"no de AST desconhecido: {no!r}")
 
@@ -155,6 +219,25 @@ class Gerador:
             # a semantica ja garantiu que o simbolo existe (local ou global)
             self.gerar_exp(cmd.exp)
             self.emitir(f"mov %rax, {self._operando(cmd.nome)}")
+            return
+        if isinstance(cmd, Escreve):
+            # reaproveita a rotina que ja imprimia o valor final do programa.
+            # E um comando, entao nada precisa sobreviver em RAX depois — os
+            # registradores que imprime_num destroi nao importam aqui.
+            self.gerar_exp(cmd.exp)
+            self.emitir("call imprime_num")
+            return
+        if isinstance(cmd, AtribuicaoArray):
+            # mesmo esquema de duas fases das operacoes binarias: gera o valor
+            # primeiro e o empilha, depois gera o indice. Assim uma expressao
+            # de indice arbitrariamente complexa (que usa RAX/RBX e a pilha a
+            # vontade) nao destroi o valor a ser gravado.
+            self.gerar_exp(cmd.exp)
+            self.emitir("push %rax")
+            self.gerar_exp(cmd.indice)
+            self.emitir("mov %rax, %rbx")
+            self.emitir("pop %rax")
+            self.emitir(f"mov %rax, {_simbolo(cmd.nome)}(,%rbx,8)")
             return
         if isinstance(cmd, Se):
             n = self._novo_id()
@@ -219,9 +302,11 @@ def gerar_funcao(func):
 def gerar_programa(arvore):
     """Retorna o assembly completo (string) para a arvore sintatica dada."""
     var_decls = [d for d in arvore.declaracoes if isinstance(d, Declaracao)]
+    array_decls = [d for d in arvore.declaracoes if isinstance(d, DeclaracaoArray)]
     func_decls = [d for d in arvore.declaracoes if isinstance(d, FuncDecl)]
 
     ger = Gerador()
+    # arrays nao geram codigo de inicializacao: a .bss e zerada pelo carregador
     for decl in var_decls:
         ger.gerar_exp(decl.exp)
         ger.emitir(f"mov %rax, {_simbolo(decl.nome)}")
@@ -229,10 +314,12 @@ def gerar_programa(arvore):
     ger.gerar_exp(arvore.exp_retorno)
 
     bss_linhas = []
-    if var_decls:
+    if var_decls or array_decls:
         bss_linhas.append("    .section .bss")
-        for var in sorted(set(d.nome for d in var_decls)):
-            bss_linhas.append(f"    .lcomm {_simbolo(var)}, 8")
+        tamanhos = {d.nome: 8 for d in var_decls}
+        tamanhos.update({d.nome: 8 * d.tamanho for d in array_decls})
+        for nome in sorted(tamanhos):
+            bss_linhas.append(f"    .lcomm {_simbolo(nome)}, {tamanhos[nome]}")
         bss_linhas.append("")
 
     linhas = list(bss_linhas) + list(PROLOGO)

@@ -1,0 +1,10 @@
+var a = 0;
+var b = 0;
+main {
+  a = 0 - 7;
+  b = 3;
+  escreve a / b;
+  escreve a % b;
+  escreve a % b + a / b * b;
+  return 0;
+}

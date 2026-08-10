@@ -1,0 +1,7 @@
+main {
+  escreve 10 % 3;
+  escreve 17 % 5;
+  escreve 100 % 10;
+  escreve 7 + 10 % 3;
+  return 10 % 4;
+}

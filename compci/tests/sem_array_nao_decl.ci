@@ -1,0 +1,3 @@
+main {
+  return b[0];
+}

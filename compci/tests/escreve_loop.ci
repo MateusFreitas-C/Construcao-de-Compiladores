@@ -1,0 +1,10 @@
+var i = 0;
+main {
+  i = 1;
+  while i <= 5 {
+    escreve i * i;
+    i = i + 1;
+  }
+  escreve 0 - 42;
+  return 0;
+}
