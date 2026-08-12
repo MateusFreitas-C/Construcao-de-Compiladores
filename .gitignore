@@ -1,4 +1,6 @@
 __pycache__/
 *.pyc
-compci/tests/*.s
-compci/tests/*.o
+# artefatos do build.sh dentro de tests/ (.s, .o e o binario sem extensao)
+compci/tests/*
+!compci/tests/*.ci
+!compci/tests/*.t

@@ -160,9 +160,7 @@ Assembly do curto-circuito de `&&`: o operando esquerdo e gerado primeiro
 (ao contrario das operacoes binarias, que geram o direito primeiro), e o
 codigo do direito fica sob um salto condicional:
 
-  $ printf 'main {\n  return 1 && 0;\n}\n' > curto.ci
-
-  $ python3 "$TESTDIR/../compci.py" --stdout curto.ci | sed -n '/_start:/,/call imprime/p'
+  $ python3 "$TESTDIR/../compci.py" --stdout "$TESTDIR/curto_simples.ci" | sed -n '/_start:/,/call imprime/p'
   _start:
       mov $1, %rax
       cmp $0, %rax
